@@ -4,7 +4,7 @@ import useAppStore from '../stores/appStore'
 import { getConfig, updateConfig } from '../lib/api'
 
 function ConfigForm() {
-    const { config, setConfig, setCurrentStep, scannedPejabat } = useAppStore()
+    const { config, setConfig, setCurrentStep, scannedPejabat, parsedData } = useAppStore()
     const [isLoading, setIsLoading] = useState(true)
     const [loadError, setLoadError] = useState(null)
     const [formData, setFormData] = useState(config || {
@@ -19,45 +19,63 @@ function ConfigForm() {
     })
 
     useEffect(() => {
-        // PERBAIKAN: Cek 'scannedPejabat' dari hasil upload Excel
-        if (scannedPejabat && (scannedPejabat.kepala_sekolah?.nama || scannedPejabat.kepala_sekolah?.nip)) {
-            console.log('Using scannedPejabat from upload', scannedPejabat)
-            setFormData(prev => ({
-                ...prev,
-                pejabat: scannedPejabat
-            }))
-            setIsLoading(false)
-            return
+        const findAndSetData = () => {
+            // STRATEGI: UNIVERSAL DATA FINDER
+            // Cari data pejabat dimanapun dia bersembunyi
+
+            let foundPejabat = null;
+
+            // 1. Priortitas Utama: Variable Store khusus hasil scan
+            if (scannedPejabat && (scannedPejabat.kepala_sekolah?.nama || scannedPejabat.kepala_sekolah?.nip)) {
+                console.log('[CONFIG] Found in scannedPejabat:', scannedPejabat);
+                foundPejabat = scannedPejabat;
+            }
+            // 2. Backup: Cek di dalam Raw Parsed Data (Metadata) - INI YANG SERING TERLEWAT
+            else if (parsedData?.metadata?.pejabat && (parsedData.metadata.pejabat.kepala_sekolah?.nama)) {
+                console.log('[CONFIG] Found in parsedData.metadata:', parsedData.metadata.pejabat);
+                foundPejabat = parsedData.metadata.pejabat;
+            }
+            // 3. Backup: Cek di root Parsed Data (Struktur Lama)
+            else if (parsedData?.scannedPejabat && (parsedData.scannedPejabat.kepala_sekolah?.nama)) {
+                console.log('[CONFIG] Found in parsedData.scannedPejabat:', parsedData.scannedPejabat);
+                foundPejabat = parsedData.scannedPejabat;
+            }
+            // 4. Fallback: Config lama
+            else if (config?.pejabat && (config.pejabat.kepala_sekolah?.nama)) {
+                console.log('[CONFIG] Found in existing Config:', config.pejabat);
+                foundPejabat = config.pejabat;
+            }
+
+            if (foundPejabat) {
+                setFormData(prev => ({
+                    ...prev,
+                    pejabat: {
+                        kepala_sekolah: { ...prev.pejabat.kepala_sekolah, ...foundPejabat.kepala_sekolah },
+                        pengurus_barang: { ...prev.pejabat.pengurus_barang, ...foundPejabat.pengurus_barang }
+                    }
+                }))
+                setIsLoading(false)
+                return
+            }
+
+            // If nothing found in local state, try fetch from server config
+            // But only if we haven't loaded yet
+            if (isLoading) {
+                getConfig()
+                    .then(response => {
+                        if (response.data && response.data.pejabat) {
+                            setFormData(response.data)
+                            setConfig(response.data)
+                        }
+                        setIsLoading(false)
+                    })
+                    .catch(() => setIsLoading(false))
+            }
         }
 
-        // Fallback: Cek 'config' yang mungkin sudah ada
-        if (config && config.pejabat && (config.pejabat.kepala_sekolah?.nama || config.pejabat.kepala_sekolah?.nip)) {
-            console.log('Using config from store', config)
-            setFormData(config)
-            setIsLoading(false)
-            return
-        }
+        findAndSetData()
 
-        setIsLoading(true)
-        setLoadError(null)
-        // Load config from API (Only if local state is empty)
-        getConfig()
-            .then(response => {
-                // If server has data, use it. Otherwise keep defaults
-                if (response.data && response.data.pejabat) {
-                    setFormData(response.data)
-                    setConfig(response.data)
-                }
-                setIsLoading(false)
-            })
-            .catch(err => {
-                console.error('Failed to load config:', err)
-                // Silent error is better here, usually just means no config saved yet
-                setIsLoading(false)
-                // Fallback to existing config (defaults)
-                if (config) setFormData(config)
-            })
-    }, [config]) // Add config as dependency
+    }, [scannedPejabat, parsedData, config]) // Re-run if ANY of these change
 
     const handleSubmit = (e) => {
         e.preventDefault()
