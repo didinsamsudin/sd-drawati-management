@@ -42,16 +42,20 @@ function FileUploader() {
                 const response = await uploadFile(file)
                 setParsedData(response.data)
 
-                // ===== ZERO HARDCODE: Save scanned Pejabat & Tahun =====
-                if (response.data.scannedPejabat) {
-                    setScannedPejabat(response.data.scannedPejabat)
-                    console.log('[ZERO HARDCODE] Scanned Pejabat:', response.data.scannedPejabat)
+                // ===== ZERO HARDCODE: Save scanned Pejabat & Tahun (Fix Mapping) =====
+                // Server sends: { metadata: { pejabat: {...}, tahunAnggaran: 2024 } }
+
+                const meta = response.data.metadata
+                if (meta && meta.pejabat) {
+                    setScannedPejabat(meta.pejabat)
+                    console.log('[ZERO HARDCODE] Scanned Pejabat:', meta.pejabat)
                 }
-                if (response.data.scannedTahun) {
-                    setScannedTahun(response.data.scannedTahun)
+
+                if (meta && meta.tahunAnggaran) {
+                    setScannedTahun(meta.tahunAnggaran)
                     // Auto-update date to match detected year
-                    setLocalDate(`${response.data.scannedTahun}-12-31`)
-                    console.log('[ZERO HARDCODE] Scanned Tahun:', response.data.scannedTahun)
+                    setLocalDate(`${meta.tahunAnggaran}-12-31`)
+                    console.log('[ZERO HARDCODE] Scanned Tahun:', meta.tahunAnggaran)
                 }
 
                 // Auto-proceed to next step after 1.5 second for visual confirmation
