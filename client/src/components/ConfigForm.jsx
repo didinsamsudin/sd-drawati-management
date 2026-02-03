@@ -236,6 +236,14 @@ function ConfigForm() {
                     </button>
                 </div>
             </form>
+
+            {/* DEBUGGING SECTION (Temporary) */}
+            <div className="mt-8 p-4 bg-gray-100 border border-gray-300 rounded text-xs font-mono overflow-auto h-40">
+                <p className="font-bold text-red-600">DEBUG INFO (Kirim screenshot ini jika error):</p>
+                <p>Scanned Pejabat (Store): {JSON.stringify(scannedPejabat, null, 2)}</p>
+                <p>Config (Store): {JSON.stringify(config, null, 2)}</p>
+                <p>Form Data (State): {JSON.stringify(formData, null, 2)}</p>
+            </div>
         </div>
     )
 }
