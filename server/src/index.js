@@ -293,6 +293,11 @@ app.put(['/api/config', '/config'], async (req, res) => {
     }
 })
 
+// Root route for checking
+app.get('/', (req, res) => {
+    res.send('✅ SD Drawati API is Running! Use /api/upload to upload files.')
+})
+
 /**
  * Health check
  */
