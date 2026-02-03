@@ -22,88 +22,74 @@ export function scanFooterForPejabat(worksheet) {
         pengurus_barang: { nama: '', nip: '' }
     }
 
-    // 1. FIND REAL LAST ROW (Ignore empty rows at bottom using formatting)
-    // ExcelJS rowCount includes empty shaped rows. We need the actual data end.
-    let realLastRow = worksheet.rowCount
-    const minRow = Math.max(1, realLastRow - 1000) // Don't scan forever if valid rows
+    // NUCLEAR OPTION: GLOBAL SEARCH
+    // Scan EVERY ROW for NIP candidates. Format varies too much to guess location.
+    // We collect all NIP-like cells, then pick the ones at the very bottom.
 
-    for (let r = realLastRow; r >= minRow; r--) {
-        const row = worksheet.getRow(r)
-        // Check if row has any non-empty string value
-        let hasContent = false
-        row.eachCell((cell) => {
-            if (cell.value && cell.value.toString().trim().length > 0) hasContent = true
-        })
+    const candidates = []
 
-        if (hasContent) {
-            realLastRow = r
-            break
-        }
-    }
-
-    console.log(`[FOOTER SCAN] RowCount: ${worksheet.rowCount}, RealLastRow: ${realLastRow}`)
-
-    // 2. SCAN FROM REAL LAST ROW UPWARDS (Max 50 rows)
-    const startScan = Math.max(1, realLastRow - 50)
-
-    for (let rowNum = realLastRow; rowNum >= startScan; rowNum--) {
-        const row = worksheet.getRow(rowNum)
-
-        row.eachCell((cell, colNum) => {
+    worksheet.eachRow((row, rowNumber) => {
+        row.eachCell((cell, colNumber) => {
             const val = cell.value ? cell.value.toString().trim() : ''
 
-            // Check if this cell looks like a NIP
+            // Check for NIP pattern
             const isNipKeyword = val.toLowerCase().includes('nip')
-            // NIP pattern: Must have at least 15 digits (standard NIP is 18 digits)
-            // But let's be loose -> 10 digits
-            const isDigitPattern = val.replace(/\D/g, '').length >= 10
+            const isDigitPattern = val.replace(/\D/g, '').length >= 12 // Min 12 digits for NIP
 
-            if (isNipKeyword || (isDigitPattern && val.length < 35)) { // Avoid grabbing long sentences
-
-                // Clean NIP
-                const cleanNip = val.replace(/^NIP\.?\s*/i, '').trim()
-
-                // Try to find NAME above this NIP (1 or 2 rows above)
-                let name = ''
-
-                // Check 1 row above
-                const rowAbove1 = worksheet.getRow(rowNum - 1).getCell(colNum).value
-                if (rowAbove1 && rowAbove1.toString().trim().length > 3) {
-                    name = rowAbove1.toString().trim()
-                } else {
-                    // Check 2 rows above (sometimes there is a spacer)
-                    const rowAbove2 = worksheet.getRow(rowNum - 2).getCell(colNum).value
-                    if (rowAbove2 && rowAbove2.toString().trim().length > 3) {
-                        name = rowAbove2.toString().trim()
-                    }
-                }
-
-                // If name looks like "Mengetahui" or "Kepala Sekolah", it's NOT a name.
-                // In that case, maybe name is ABOVE that header? (Rare, but possible).
-                // Usually Name is below header, and above NIP.
-                // So if Row-1 is "Kepala Sekolah", then Row-2 ??
-                // Let's stick to simple: Name is closest text above NIP.
-
-                // Determine Role based on Column Position
-                // Left side (Col 1-8) = Kepala Sekolah
-                // Right side (Col > 8) = Pengurus Barang
-
-                if (colNum <= 8) {
-                    if (!result.kepala_sekolah.nip) {
-                        result.kepala_sekolah.nip = cleanNip
-                        if (name) result.kepala_sekolah.nama = name
-                    }
-                } else {
-                    if (!result.pengurus_barang.nip) {
-                        result.pengurus_barang.nip = cleanNip
-                        if (name) result.pengurus_barang.nama = name
-                    }
-                }
+            if ((isNipKeyword || isDigitPattern) && val.length < 50) {
+                candidates.push({
+                    row: rowNumber,
+                    col: colNumber,
+                    val: val,
+                    cleanNip: val.replace(/^NIP\.?\s*/i, '').trim()
+                })
             }
         })
+    })
+
+    console.log(`[GLOBAL BIT SEARCH] Found ${candidates.length} NIP candidates`)
+
+    // Sort candidates by Row (Descending) - we want the bottom ones
+    candidates.sort((a, b) => b.row - a.row)
+
+    // Take candidates that are likely the signatures (usually the last ones found)
+    // We separate them by Left (KS) and Right (Pengurus)
+
+    for (const cand of candidates) {
+        // Logika: Cari nama 1 atau 2 baris di atas NIP ini
+        // Kita butuh akses ulang ke worksheet row
+
+        // Skip if this role is already filled
+        const isLeft = cand.col <= 8
+        const targetRole = isLeft ? 'kepala_sekolah' : 'pengurus_barang'
+
+        if (result[targetRole].nip) continue // Already found simpler candidate
+
+        // Get Name
+        let name = ''
+        const rowAbove1 = worksheet.getRow(cand.row - 1).getCell(cand.col).value
+        const rowAbove2 = worksheet.getRow(cand.row - 2).getCell(cand.col).value
+
+        if (rowAbove1 && rowAbove1.toString().trim().length > 3) {
+            name = rowAbove1.toString().trim()
+        } else if (rowAbove2 && rowAbove2.toString().trim().length > 3) {
+            name = rowAbove2.toString().trim()
+        }
+
+        // Ignore "Mengetahui", "Pihak", "Kepala" as names
+        if (name) {
+            const lower = name.toLowerCase()
+            if (lower.includes('mengetahui') || lower.includes('pihak') || lower.includes('kepala')) {
+                name = ''
+            }
+        }
+
+        // Fill result
+        result[targetRole].nip = cand.cleanNip
+        if (name) result[targetRole].nama = name
     }
 
-    console.log('[FOOTER SCAN] Extracted Pejabat:', result)
+    console.log('[GLOBAL SCAN RESULT]', result)
     return result
 }
 
