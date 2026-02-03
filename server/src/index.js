@@ -88,7 +88,7 @@ const sessions = new Map()
 /**
  * POST /api/upload
  */
-app.post('/api/upload', upload.single('file'), async (req, res) => {
+app.post(['/api/upload', '/upload'], upload.single('file'), async (req, res) => {
     try {
         if (!req.file) return res.status(400).json({ error: 'No file uploaded' })
 
@@ -123,7 +123,7 @@ app.post('/api/upload', upload.single('file'), async (req, res) => {
 /**
  * POST /api/transform
  */
-app.post('/api/transform', async (req, res) => {
+app.post(['/api/transform', '/transform'], async (req, res) => {
     try {
         const { sessionId, saldoAwal = {} } = req.body
         if (!sessionId || !sessions.has(sessionId)) return res.status(400).json({ error: 'Invalid session' })
@@ -153,7 +153,7 @@ app.post('/api/transform', async (req, res) => {
  * POST /api/generate
  * Generate all output files and zip them
  */
-app.post('/api/generate', async (req, res) => {
+app.post(['/api/generate', '/generate'], async (req, res) => {
     try {
         const { sessionId, saldoAwal = {}, config = {} } = req.body
         if (!sessionId || !sessions.has(sessionId)) return res.status(400).json({ error: 'Invalid session' })
@@ -256,7 +256,7 @@ app.get('/api/download/:filename', (req, res) => {
 /**
  * GET /api/config
  */
-app.get('/api/config', async (req, res) => {
+app.get(['/api/config', '/config'], async (req, res) => {
     try {
         const configPath = path.join(DATABASE_DIR, 'config.json')
         let configData
@@ -282,7 +282,7 @@ app.get('/api/config', async (req, res) => {
 /**
  * PUT /api/config
  */
-app.put('/api/config', async (req, res) => {
+app.put(['/api/config', '/config'], async (req, res) => {
     try {
         const configPath = path.join(DATABASE_DIR, 'config.json')
         await fsPromises.writeFile(configPath, JSON.stringify(req.body, null, 2))
@@ -296,7 +296,7 @@ app.put('/api/config', async (req, res) => {
 /**
  * Health check
  */
-app.get('/api/health', (req, res) => {
+app.get(['/api/health', '/health'], (req, res) => {
     res.json({ status: 'OK', timestamp: new Date(), activeSessions: sessions.size })
 })
 
