@@ -5,7 +5,17 @@
 
 import axios from 'axios'
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || '/api'
+// Smart URL handling
+let envUrl = import.meta.env.VITE_API_URL || '/api'
+
+// If URL is absolute (http...) and doesn't end with /api, append it
+if (envUrl.startsWith('http') && !envUrl.endsWith('/api') && !envUrl.endsWith('/api/')) {
+    // Remove trailing slash if exists first to avoid double slash
+    envUrl = envUrl.endsWith('/') ? envUrl.slice(0, -1) : envUrl
+    envUrl += '/api'
+}
+
+const API_BASE_URL = envUrl
 
 const api = axios.create({
     baseURL: API_BASE_URL,
