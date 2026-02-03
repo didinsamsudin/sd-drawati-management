@@ -1,24 +1,13 @@
 {
-    "name": "manajemen-sd-drawati",
+    "name": "manajemen-sd-drawati-monorepo",
     "version": "1.0.0",
-    "description": "Sistem Otomasi Stock Opname untuk SDN DRAWATI 04",
     "private": true,
     "scripts": {
-        "dev": "concurrently \"npm run dev:client\" \"npm run dev:server\"",
-        "dev:client": "cd client && npm run dev",
-        "dev:server": "cd server && npm run dev",
-        "build": "cd client && npm run build",
-        "start": "cd server && npm start",
-        "install:all": "npm install && cd client && npm install && cd ../server && npm install"
+        "postinstall": "cd client && npm install && cd ../server && npm install",
+        "build": "cd client && npm run build"
     },
-    "keywords": [
-        "stock-opname",
-        "school-management",
-        "excel-automation"
-    ],
-    "author": "SDN DRAWATI 04",
-    "license": "PROPRIETARY",
-    "devDependencies": {
-        "concurrently": "^8.2.2"
-    }
+    "workspaces": [
+        "client",
+        "server"
+    ]
 }
