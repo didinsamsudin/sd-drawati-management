@@ -37,12 +37,22 @@ const __dirname = path.dirname(__filename)
 
 const app = express()
 const PORT = process.env.PORT || 3000
-const OUTPUT_DIR = path.join(__dirname, '../outputs')
-const DATABASE_DIR = path.join(__dirname, '../../database')
 
-// Ensure output directory exists
+// Determine environment
+const isProduction = process.env.NODE_ENV === 'production' || process.env.VERCEL
+
+// Use /tmp for serverless environments, local folders for dev
+const OUTPUT_DIR = isProduction ? '/tmp' : path.join(__dirname, '../outputs')
+// Database also needs to be temp or persistent (in Vercel it will reset, but prevent crash)
+const DATABASE_DIR = isProduction ? '/tmp' : path.join(__dirname, '../../database')
+
+// Ensure output directory exists (Vercel /tmp always exists, but good practice)
 if (!fs.existsSync(OUTPUT_DIR)) {
-    fs.mkdirSync(OUTPUT_DIR, { recursive: true })
+    try {
+        fs.mkdirSync(OUTPUT_DIR, { recursive: true })
+    } catch (e) {
+        console.warn('Could not create output dir, assuming exists:', e)
+    }
 }
 
 // Security Middleware
