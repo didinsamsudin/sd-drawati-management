@@ -19,23 +19,35 @@ function ConfigForm() {
     })
 
     useEffect(() => {
+        // PERBAIKAN: Gunakan data dari parsed upload (local state) JIKA ADA.
+        // Jangan fetch dari server kalau kita baru saja upload file yang berisi metadata.
+        if (config && config.pejabat && (config.pejabat.kepala_sekolah?.nama || config.pejabat.kepala_sekolah?.nip)) {
+            console.log('Using config from upload metadata', config)
+            setFormData(config)
+            setIsLoading(false)
+            return
+        }
+
         setIsLoading(true)
         setLoadError(null)
-        // Load config from API
+        // Load config from API (Only if local state is empty)
         getConfig()
             .then(response => {
-                setFormData(response.data)
-                setConfig(response.data)
+                // If server has data, use it. Otherwise keep defaults
+                if (response.data && response.data.pejabat) {
+                    setFormData(response.data)
+                    setConfig(response.data)
+                }
                 setIsLoading(false)
             })
             .catch(err => {
                 console.error('Failed to load config:', err)
-                setLoadError('Gagal memuat data konfigurasi. Pastikan server berjalan.')
+                // Silent error is better here, usually just means no config saved yet
                 setIsLoading(false)
-                // Fallback to existing config or defaults if offline
+                // Fallback to existing config (defaults)
                 if (config) setFormData(config)
             })
-    }, [])
+    }, [config]) // Add config as dependency
 
     const handleSubmit = (e) => {
         e.preventDefault()
