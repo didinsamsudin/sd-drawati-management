@@ -516,19 +516,20 @@ export async function parseExcelFile(fileBuffer) {
     // ===== BONUS: Get last transaction date =====
     const lastTransactionDate = extractLastTransactionDate(worksheet, headerRow)
 
+    // parseExcelFile return structure fix
     return {
         metadata: {
             fileName: workbook.creator || 'Unknown',
             sheetName: worksheet.name,
             headerRow,
             totalRows: data.length,
-            dimensions: `${worksheet.rowCount} rows × ${worksheet.columnCount} columns`
+            dimensions: `${worksheet.rowCount} rows × ${worksheet.columnCount} columns`,
+            // VITAL FIX: Include detected data inside metadata so it reaches frontend
+            pejabat: scannedPejabat,
+            tahunAnggaran: scannedTahun,
+            lastTransactionDate: lastTransactionDate ? lastTransactionDate.toISOString() : null
         },
         data,
-        validation,
-        // ZERO HARDCODE OUTPUT
-        scannedPejabat,
-        scannedTahun,
-        lastTransactionDate: lastTransactionDate ? lastTransactionDate.toISOString() : null
+        validation
     }
 }
