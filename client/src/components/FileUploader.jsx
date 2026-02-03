@@ -98,7 +98,9 @@ function FileUploader() {
                 <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-blue-100 text-blue-600 mb-2">
                     <Upload className="w-8 h-8" />
                 </div>
-                <h2 className="text-3xl font-bold text-slate-900 tracking-tight">Upload Data Laporan</h2>
+                <h2 className="text-3xl font-bold text-slate-900 tracking-tight">
+                    Upload Data Laporan <span className="text-sm font-normal text-rose-600 bg-rose-100 px-2 py-1 rounded-full align-middle">v2.1</span>
+                </h2>
                 <p className="text-lg text-slate-500 max-w-lg mx-auto leading-relaxed">
                     Silakan upload file <span className="font-semibold text-slate-700">Laporan Beban Persediaan</span> dalam format Excel (.xlsx) untuk mulai memproses.
                 </p>
