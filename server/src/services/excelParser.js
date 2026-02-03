@@ -22,82 +22,59 @@ export function scanFooterForPejabat(worksheet) {
         pengurus_barang: { nama: '', nip: '' }
     }
 
-    // Scan from bottom up for efficiency (footer is usually at the end)
+    // NIP-FIRST STRATEGY (More Robust)
+    // Scan bottom 40 rows. If we find "NIP", assume the name is 1 or 2 rows above it.
+
     const totalRows = worksheet.rowCount
-    let kepalaSekolahHeaderRow = null
-    let pengurusBarangHeaderRow = null
+    const startScan = Math.max(1, totalRows - 40)
 
-    // Find keyword rows
-    for (let rowNum = totalRows; rowNum > Math.max(1, totalRows - 50); rowNum--) {
+    for (let rowNum = totalRows; rowNum >= startScan; rowNum--) {
         const row = worksheet.getRow(rowNum)
-        const rowText = row.values.join(' ').toLowerCase()
 
-        // Find "KEPALA SEKOLAH" keyword (Pihak Pertama - Column kiri)
-        if (rowText.includes('kepala sekolah') && !kepalaSekolahHeaderRow) {
-            kepalaSekolahHeaderRow = rowNum
-        }
+        row.eachCell((cell, colNum) => {
+            const val = cell.value ? cell.value.toString().trim() : ''
 
-        // Find "PENGURUS BARANG" or "PETUGAS" keyword (Pihak Kedua - Column kanan)
-        if ((rowText.includes('pengurus barang') || rowText.includes('petugas')) && !pengurusBarangHeaderRow) {
-            pengurusBarangHeaderRow = rowNum
-        }
-    }
+            // Check if this cell looks like a NIP
+            const isNipKeyword = val.toLowerCase().includes('nip')
+            const isDigitPattern = val.replace(/\D/g, '').length >= 10
 
-    // Extract Kepala Sekolah
-    if (kepalaSekolahHeaderRow) {
-        // Scan 1-7 rows below header for Name and NIP
-        for (let offset = 1; offset <= 7; offset++) {
-            const row = worksheet.getRow(kepalaSekolahHeaderRow + offset)
+            if (isNipKeyword || (isDigitPattern && val.length < 30)) {
 
-            // Scan columns 1-8 (Left side)
-            for (let col = 1; col <= 8; col++) {
-                const cellVal = row.getCell(col).value
-                if (!cellVal) continue
+                // Clean NIP
+                const cleanNip = val.replace(/^NIP\.?\s*/i, '').trim()
 
-                const strVal = cellVal.toString().trim()
+                // Try to find NAME above this NIP (1 or 2 rows above)
+                let name = ''
 
-                // Detect NIP first (Logic: contains "NIP" or mostly digits)
-                const isNip = strVal.toLowerCase().includes('nip') || (strVal.replace(/\D/g, '').length > 10)
+                // Check 1 row above
+                const rowAbove1 = worksheet.getRow(rowNum - 1).getCell(colNum).value
+                if (rowAbove1 && rowAbove1.toString().trim().length > 3) {
+                    name = rowAbove1.toString().trim()
+                } else {
+                    // Check 2 rows above (sometimes there is a spacer)
+                    const rowAbove2 = worksheet.getRow(rowNum - 2).getCell(colNum).value
+                    if (rowAbove2 && rowAbove2.toString().trim().length > 3) {
+                        name = rowAbove2.toString().trim()
+                    }
+                }
 
-                if (isNip && !result.kepala_sekolah.nip) {
-                    result.kepala_sekolah.nip = strVal.replace(/^NIP\.?\s*/i, '').trim()
-                } else if (!isNip && strVal.length > 3 && !result.kepala_sekolah.nama) {
-                    // Assume it's a Name if it's long enough and not NIP
-                    // And we confirm it's not another header like "Mengetahui"
-                    const lower = strVal.toLowerCase()
-                    if (!lower.includes('mengetahui') && !lower.includes('kepala')) {
-                        result.kepala_sekolah.nama = strVal
+                // Determine Role based on Column Position
+                // Left side (Col 1-8) = Kepala Sekolah
+                // Right side (Col > 8) = Pengurus Barang
+
+                if (colNum <= 8) {
+                    if (!result.kepala_sekolah.nip) { // Data terbawah biasanya yang benar
+                        result.kepala_sekolah.nip = cleanNip
+                        if (name) result.kepala_sekolah.nama = name
+                    }
+                } else {
+                    if (!result.pengurus_barang.nip) {
+                        result.pengurus_barang.nip = cleanNip
+                        if (name) result.pengurus_barang.nama = name
                     }
                 }
             }
-        }
-    }
-
-    // Extract Pengurus Barang
-    if (pengurusBarangHeaderRow) {
-        // Scan 1-7 rows below header
-        for (let offset = 1; offset <= 7; offset++) {
-            const row = worksheet.getRow(pengurusBarangHeaderRow + offset)
-
-            // Scan columns 10-25 (Right side)
-            for (let col = 10; col <= 25; col++) {
-                const cellVal = row.getCell(col).value
-                if (!cellVal) continue
-
-                const strVal = cellVal.toString().trim()
-
-                const isNip = strVal.toLowerCase().includes('nip') || (strVal.replace(/\D/g, '').length > 10)
-
-                if (isNip && !result.pengurus_barang.nip) {
-                    result.pengurus_barang.nip = strVal.replace(/^NIP\.?\s*/i, '').trim()
-                } else if (!isNip && strVal.length > 3 && !result.pengurus_barang.nama) {
-                    const lower = strVal.toLowerCase()
-                    if (!lower.includes('pengurus') && !lower.includes('barang')) {
-                        result.pengurus_barang.nama = strVal
-                    }
-                }
-            }
-        }
+        })
     }
 
     console.log('[FOOTER SCAN] Extracted Pejabat:', result)
