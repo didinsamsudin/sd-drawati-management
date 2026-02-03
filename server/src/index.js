@@ -38,6 +38,20 @@ const __dirname = path.dirname(__filename)
 const app = express()
 const PORT = process.env.PORT || 3000
 
+// AGGRESSIVE CORS MIDDLEWARE (Fix for Vercel)
+app.use((req, res, next) => {
+    res.header('Access-Control-Allow-Origin', '*')
+    res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
+    res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization')
+    res.header('Access-Control-Allow-Credentials', 'true')
+
+    // Intercept OPTIONS method
+    if (req.method === 'OPTIONS') {
+        return res.status(200).end()
+    }
+    next()
+})
+
 // Determine environment
 const isProduction = process.env.NODE_ENV === 'production' || process.env.VERCEL
 
