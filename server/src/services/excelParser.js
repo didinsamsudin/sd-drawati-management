@@ -383,6 +383,11 @@ export function extractData(worksheet, headerRow) {
             'sticky note',  // Post-it
             'post-it',
             'kartu nama',   // Business cards (blank)
+            'tinta',        // Ink
+            'toner',        // Toner
+            'cartridge',    // Cartridge
+            'catridge',     // Common typo
+            'pita',         // Ribbon
         ]
 
         const isAtkException = atkExceptions.some(item => uraianLower.includes(item))
