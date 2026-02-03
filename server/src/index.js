@@ -290,9 +290,12 @@ app.get('/api/health', (req, res) => {
     res.json({ status: 'OK', timestamp: new Date(), activeSessions: sessions.size })
 })
 
-app.listen(PORT, '0.0.0.0', () => {
-    console.log(`\n🚀 Server running on http://localhost:${PORT}`)
-    console.log(`📂 Output dir: ${OUTPUT_DIR}`)
-})
+// Start server only in development/local mode
+if (process.env.NODE_ENV !== 'production') {
+    app.listen(PORT, '0.0.0.0', () => {
+        console.log(`\n🚀 Server running on http://localhost:${PORT}`)
+        console.log(`📂 Output dir: ${OUTPUT_DIR}`)
+    })
+}
 
 export default app
