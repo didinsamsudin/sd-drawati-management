@@ -223,9 +223,74 @@ function GenerateProgress() {
                                     key={idx}
                                     disabled={!file.active}
                                     onClick={() => {
+                                        // Map index to key
+                                        const keys = ['formStock', 'laporanPersediaan', 'baStock', 'bast']
+                                        const key = keys[idx]
+
+                                        // METHOD 1: Base64 (Serverless / Vercel Safe)
+                                        if (key && generatedFiles?.filesContent?.[key]) {
+                                            try {
+                                                const b64 = generatedFiles.filesContent[key]
+                                                const binaryString = window.atob(b64)
+                                                const bytes = new Uint8Array(binaryString.length)
+                                                for (let i = 0; i < binaryString.length; i++) {
+                                                    bytes[i] = binaryString.charCodeAt(i)
+                                                }
+                                                // Determine mime type based on extension
+                                                const isDocx = file.ext === 'docx'
+                                                const mime = isDocx
+                                                    ? 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+                                                    : 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+
+                                                const blob = new Blob([bytes], { type: mime })
+                                                const url = window.URL.createObjectURL(blob)
+                                                const a = document.createElement('a')
+                                                a.href = url
+
+                                                // Get filename from URL or default
+                                                const remotePath = generatedFiles.files[key] || ''
+                                                const fileName = remotePath.split('/').pop() || `${key}.${file.ext}`
+
+                                                a.download = fileName
+                                                document.body.appendChild(a)
+                                                a.click()
+                                                window.URL.revokeObjectURL(url)
+                                                document.body.removeChild(a)
+                                                return
+                                            } catch (e) {
+                                                console.error("Base64 download failed", e)
+                                            }
+                                        }
+
+                                        // METHOD 2: Direct Link (Local Dev / Fallback)
                                         if (file.active && file.url) {
-                                            const url = `http://localhost:3000${file.url}`
-                                            window.open(url, '_blank')
+                                            const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+
+                                            // 1. Get API URL from Env or default
+                                            let apiUrl = import.meta.env.VITE_API_URL || '';
+
+                                            // 2. PARANOID SAFETY CHECK: 
+                                            // If we are NOT on localhost (e.g. Vercel), but the API URL is set to localhost, IGNORE IT.
+                                            // This fixes cases where .env or Vercel Settings have 'http://localhost:3000' hardcoded.
+                                            if (!isLocal && apiUrl.includes('localhost')) {
+                                                console.warn('[DOWNLOAD] Treating localhost API URL as invalid for production');
+                                                apiUrl = '';
+                                            }
+
+                                            // 3. Fallback to Origin or Localhost
+                                            if (!apiUrl) {
+                                                apiUrl = isLocal ? 'http://localhost:3000' : window.location.origin;
+                                            }
+
+                                            // 4. Clean and Join
+                                            let cleanBase = apiUrl;
+                                            if (cleanBase && cleanBase.endsWith('/')) cleanBase = cleanBase.slice(0, -1);
+                                            if (cleanBase && cleanBase.endsWith('/api')) cleanBase = cleanBase.slice(0, -4);
+
+                                            // 5. Open URL
+                                            const finalUrl = `${cleanBase}${file.url}`;
+                                            console.log('[DOWNLOAD] Opening:', finalUrl);
+                                            window.open(finalUrl, '_blank');
                                         }
                                     }}
                                     className={`flex items-center gap-4 p-4 rounded-xl border ${file.border} ${file.bg} ${file.active ? 'hover:shadow-md cursor-pointer' : 'opacity-80 cursor-not-allowed'} transition-all text-left w-full group relative overflow-hidden`}
@@ -256,11 +321,50 @@ function GenerateProgress() {
                         </div>
 
                         {/* Action Area */}
+                        {/* Action Area */}
                         <div className="flex flex-col items-center gap-4 pt-6 border-t border-slate-100">
                             <button
                                 onClick={() => {
-                                    if (useAppStore.getState().generatedFiles?.downloadUrl) {
-                                        const url = `http://localhost:3000${useAppStore.getState().generatedFiles.downloadUrl}`
+                                    const files = useAppStore.getState().generatedFiles
+
+                                    // METHOD 1: Base64 Download (Serverless / Vercel Safe)
+                                    if (files?.fileContent) {
+                                        try {
+                                            const binaryString = window.atob(files.fileContent);
+                                            const bytes = new Uint8Array(binaryString.length);
+                                            for (let i = 0; i < binaryString.length; i++) {
+                                                bytes[i] = binaryString.charCodeAt(i);
+                                            }
+                                            const blob = new Blob([bytes], { type: 'application/zip' });
+                                            const url = window.URL.createObjectURL(blob);
+                                            const a = document.createElement('a');
+                                            a.href = url;
+                                            a.download = files.fileName || 'Stock_Opname.zip';
+                                            document.body.appendChild(a);
+                                            a.click();
+                                            window.URL.revokeObjectURL(url);
+                                            document.body.removeChild(a);
+                                            return;
+                                        } catch (e) {
+                                            console.error("Base64 download failed", e);
+                                            alert("Download error: " + e.message);
+                                        }
+                                    }
+
+                                    // METHOD 2: Direct Link Fallback (Local Development)
+                                    if (files?.downloadUrl) {
+                                        // Use dynamic base URL, not localhost
+                                        const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000'
+                                        const cleanBase = apiUrl.endsWith('/api') ? apiUrl.slice(0, -4) : apiUrl
+
+                                        // downloadUrl already contains /api/download...
+                                        // If downloadUrl starts with /, append to origin.
+                                        // If API is on different domain, prepend API host.
+
+                                        // Simple robust fix:
+                                        // If we are in prod (Vercel), we must use the Base64 method above.
+                                        // If we are here, it means backend didn't send Base64.
+                                        const url = `${cleanBase}${files.downloadUrl}`
                                         window.open(url, '_blank')
                                     }
                                 }}
@@ -273,7 +377,7 @@ function GenerateProgress() {
                                 </div>
                             </button>
                             <p className="text-xs text-slate-400">
-                                *File ZIP akan berisi 4 dokumen di atas yang siap dicetak
+                                *File ZIP akan berisi semua dokumen yang dibutuhkan
                             </p>
                         </div>
                     </div>

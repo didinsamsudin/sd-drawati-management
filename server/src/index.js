@@ -52,13 +52,15 @@ app.use((req, res, next) => {
     next()
 })
 
-// Determine environment
-const isProduction = process.env.NODE_ENV === 'production' || process.env.VERCEL
+// Use /tmp for serverless environments (Vercel), local folders for dev
+// FIX: strict check for Vercel environment to avoid using /tmp on local Windows if NODE_ENV is set to production
+const isVercel = !!process.env.VERCEL
+const OUTPUT_DIR = isVercel ? '/tmp' : path.join(__dirname, '../outputs')
+const DATABASE_DIR = isVercel ? '/tmp' : path.join(__dirname, '../../database')
 
-// Use /tmp for serverless environments, local folders for dev
-const OUTPUT_DIR = isProduction ? '/tmp' : path.join(__dirname, '../outputs')
-// Database also needs to be temp or persistent (in Vercel it will reset, but prevent crash)
-const DATABASE_DIR = isProduction ? '/tmp' : path.join(__dirname, '../../database')
+console.log(`[INIT] Environment: ${isVercel ? 'Vercel' : 'Self-Hosted/Local'}`)
+console.log(`[INIT] Output Dir: ${OUTPUT_DIR}`)
+console.log(`[INIT] Database Dir: ${DATABASE_DIR}`)
 
 // Ensure output directory exists (Vercel /tmp always exists, but good practice)
 if (!fs.existsSync(OUTPUT_DIR)) {
@@ -87,8 +89,8 @@ app.use(cors({
 }))
 // Handle preflight requests
 app.options('*', cors())
-app.use(express.json())
-app.use(express.urlencoded({ extended: true }))
+app.use(express.json({ limit: '50mb' }))
+app.use(express.urlencoded({ extended: true, limit: '50mb' }))
 
 // Configure multer for file uploads
 const upload = multer({
@@ -225,13 +227,56 @@ app.post(['/api/generate', '/generate'], async (req, res) => {
         await archive.finalize()
 
         // Wait for file to be written
-        output.on('close', () => {
+        // Wait for file to be written
+        output.on('close', async () => {
             console.log(`[GENERATE] ZIP created: ${zipName} (${archive.pointer()} bytes)`)
+
+            // SERVERLESS FIX: Read file content and send as Base64
+            // Because /tmp is ephemeral and won't exist in the next request
+            let zipBase64 = ''
+            let filesBase64 = {}
+            let debugInfo = []
+
+            try {
+                // Read ZIP
+                if (fs.existsSync(zipPath)) {
+                    const zipBuffer = await fsPromises.readFile(zipPath)
+                    zipBase64 = zipBuffer.toString('base64')
+                } else {
+                    debugInfo.push('ZIP file not found at ' + zipPath)
+                }
+
+                // Read Individual Files
+                const p1 = path.join(OUTPUT_DIR, files.formStock)
+                const p2 = path.join(OUTPUT_DIR, files.laporanPersediaan)
+
+                if (fs.existsSync(p1)) {
+                    const formStockBuffer = await fsPromises.readFile(p1)
+                    filesBase64.formStock = formStockBuffer.toString('base64')
+                } else {
+                    debugInfo.push('Form Stock not found at ' + p1)
+                }
+
+                if (fs.existsSync(p2)) {
+                    const laporanBuffer = await fsPromises.readFile(p2)
+                    filesBase64.laporanPersediaan = laporanBuffer.toString('base64')
+                } else {
+                    debugInfo.push('Laporan Persediaan not found at ' + p2)
+                }
+
+            } catch (err) {
+                console.error('[GENERATE] Failed to read files for base64:', err)
+                debugInfo.push('Exception: ' + err.message)
+            }
+
             res.json({
                 success: true,
                 message: 'Files generated successfully',
-                downloadUrl: `/api/download/${zipName}`,
+                debug: debugInfo,
+                downloadUrl: `/api/download/${zipName}`, // Keep for backward compat (local dev)
                 fileName: zipName,
+                fileContent: zipBase64, // ZIP Base64
+                filesContent: filesBase64, // Individual Files Base64
                 files: {
                     formStock: `/api/download/${files.formStock}`,
                     laporanPersediaan: `/api/download/${files.laporanPersediaan}`,

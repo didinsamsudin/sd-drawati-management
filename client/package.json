@@ -1,7 +1,7 @@
 {
     "name": "manajemen-sd-drawati-client",
     "private": true,
-    "version": "1.0.1-debug-v3",
+    "version": "1.0.2-fix-download",
     "type": "module",
     "scripts": {
         "dev": "vite",
