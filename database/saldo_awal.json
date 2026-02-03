@@ -1,0 +1,4 @@
+{
+    "_comment": "Saldo awal tahun 2025 - Format: { 'Nama Barang': { jumlah: number, harga: number } }",
+    "data": {}
+}
