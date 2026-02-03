@@ -43,54 +43,58 @@ export function scanFooterForPejabat(worksheet) {
         }
     }
 
-    // Extract Kepala Sekolah (3 rows below header for Nama, 4 rows for NIP)
+    // Extract Kepala Sekolah
     if (kepalaSekolahHeaderRow) {
-        const namaRow = worksheet.getRow(kepalaSekolahHeaderRow + 3)
-        const nipRow = worksheet.getRow(kepalaSekolahHeaderRow + 4)
+        // Scan 1-7 rows below header for Name and NIP
+        for (let offset = 1; offset <= 7; offset++) {
+            const row = worksheet.getRow(kepalaSekolahHeaderRow + offset)
 
-        // Nama is usually in first non-empty cell (column 1-3)
-        for (let col = 1; col <= 5; col++) {
-            const namaCell = namaRow.getCell(col).value
-            if (namaCell && typeof namaCell === 'string' && namaCell.trim().length > 3 && !namaCell.toLowerCase().includes('nip')) {
-                result.kepala_sekolah.nama = namaCell.trim()
-                break
-            }
-        }
+            // Scan columns 1-8 (Left side)
+            for (let col = 1; col <= 8; col++) {
+                const cellVal = row.getCell(col).value
+                if (!cellVal) continue
 
-        // NIP - look for cell containing 'NIP' or numeric pattern
-        for (let col = 1; col <= 5; col++) {
-            const nipCell = nipRow.getCell(col).value
-            if (nipCell) {
-                const nipStr = nipCell.toString()
-                if (nipStr.toLowerCase().includes('nip') || /\d{10,}/.test(nipStr.replace(/\s/g, ''))) {
-                    result.kepala_sekolah.nip = nipStr.replace(/^NIP\.?\s*/i, '').trim()
-                    break
+                const strVal = cellVal.toString().trim()
+
+                // Detect NIP first (Logic: contains "NIP" or mostly digits)
+                const isNip = strVal.toLowerCase().includes('nip') || (strVal.replace(/\D/g, '').length > 10)
+
+                if (isNip && !result.kepala_sekolah.nip) {
+                    result.kepala_sekolah.nip = strVal.replace(/^NIP\.?\s*/i, '').trim()
+                } else if (!isNip && strVal.length > 3 && !result.kepala_sekolah.nama) {
+                    // Assume it's a Name if it's long enough and not NIP
+                    // And we confirm it's not another header like "Mengetahui"
+                    const lower = strVal.toLowerCase()
+                    if (!lower.includes('mengetahui') && !lower.includes('kepala')) {
+                        result.kepala_sekolah.nama = strVal
+                    }
                 }
             }
         }
     }
 
-    // Extract Pengurus Barang (3 rows below, but in right columns ~13-17)
+    // Extract Pengurus Barang
     if (pengurusBarangHeaderRow) {
-        const namaRow = worksheet.getRow(pengurusBarangHeaderRow + 5) // Usually 5 rows below header
-        const nipRow = worksheet.getRow(pengurusBarangHeaderRow + 6)
+        // Scan 1-7 rows below header
+        for (let offset = 1; offset <= 7; offset++) {
+            const row = worksheet.getRow(pengurusBarangHeaderRow + offset)
 
-        // Pengurus Barang is usually in columns 13-17 (right side)
-        for (let col = 10; col <= 20; col++) {
-            const namaCell = namaRow.getCell(col).value
-            if (namaCell && typeof namaCell === 'string' && namaCell.trim().length > 3 && !namaCell.toLowerCase().includes('nip')) {
-                result.pengurus_barang.nama = namaCell.trim()
-                break
-            }
-        }
+            // Scan columns 10-25 (Right side)
+            for (let col = 10; col <= 25; col++) {
+                const cellVal = row.getCell(col).value
+                if (!cellVal) continue
 
-        for (let col = 10; col <= 20; col++) {
-            const nipCell = nipRow.getCell(col).value
-            if (nipCell) {
-                const nipStr = nipCell.toString()
-                if (nipStr.toLowerCase().includes('nip') || /\d{10,}/.test(nipStr.replace(/\s/g, ''))) {
-                    result.pengurus_barang.nip = nipStr.replace(/^NIP\.?\s*/i, '').trim()
-                    break
+                const strVal = cellVal.toString().trim()
+
+                const isNip = strVal.toLowerCase().includes('nip') || (strVal.replace(/\D/g, '').length > 10)
+
+                if (isNip && !result.pengurus_barang.nip) {
+                    result.pengurus_barang.nip = strVal.replace(/^NIP\.?\s*/i, '').trim()
+                } else if (!isNip && strVal.length > 3 && !result.pengurus_barang.nama) {
+                    const lower = strVal.toLowerCase()
+                    if (!lower.includes('pengurus') && !lower.includes('barang')) {
+                        result.pengurus_barang.nama = strVal
+                    }
                 }
             }
         }
