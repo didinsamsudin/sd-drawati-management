@@ -237,12 +237,42 @@ function ConfigForm() {
                 </div>
             </form>
 
-            {/* DEBUGGING SECTION (Temporary) */}
-            <div className="mt-8 p-4 bg-gray-100 border border-gray-300 rounded text-xs font-mono overflow-auto h-40">
-                <p className="font-bold text-red-600">DEBUG INFO (Kirim screenshot ini jika error):</p>
-                <p>Scanned Pejabat (Store): {JSON.stringify(scannedPejabat, null, 2)}</p>
-                <p>Config (Store): {JSON.stringify(config, null, 2)}</p>
-                <p>Form Data (State): {JSON.stringify(formData, null, 2)}</p>
+            {/* DEBUGGING SECTION (Enhanced) */}
+            <div className="mt-8 p-4 bg-slate-100 border-2 border-slate-300 rounded-xl text-xs font-mono overflow-auto max-h-60 shadow-inner">
+                <h4 className="font-bold text-slate-700 border-b border-slate-300 pb-2 mb-2">VALIDASI DATA SERVER (DEBUG)</h4>
+
+                <div className="grid grid-cols-2 gap-4">
+                    <div>
+                        <p className="font-bold mb-1">Status Data Pejabat (Dari Upload):</p>
+                        {scannedPejabat && (scannedPejabat.kepala_sekolah?.nama || scannedPejabat.pengurus_barang?.nama) ? (
+                            <div className="bg-green-100 text-green-700 p-2 rounded border border-green-200">
+                                ✅ ADA DATA <br />
+                                KS: {scannedPejabat.kepala_sekolah?.nama || '-'} <br />
+                                NIP KS: {scannedPejabat.kepala_sekolah?.nip || '-'}
+                            </div>
+                        ) : (
+                            <div className="bg-red-100 text-red-700 p-2 rounded border border-red-200 animate-pulse">
+                                ❌ TIDAK ADA DATA DARI SERVER <br />
+                                (Server gagal membaca footer Excel)
+                            </div>
+                        )}
+                        <pre className="mt-2 text-[10px] text-slate-500">{JSON.stringify(scannedPejabat, null, 2)}</pre>
+                    </div>
+
+                    <div>
+                        <p className="font-bold mb-1">Status Form UI:</p>
+                        {formData.pejabat?.kepala_sekolah?.nama ? (
+                            <div className="bg-green-100 text-green-700 p-2 rounded border border-green-200">
+                                ✅ FORM TERISI
+                            </div>
+                        ) : (
+                            <div className="bg-yellow-100 text-yellow-700 p-2 rounded border border-yellow-200">
+                                ⚠️ FORM KOSONG
+                            </div>
+                        )}
+                        <pre className="mt-2 text-[10px] text-slate-500">{JSON.stringify(formData.pejabat, null, 2)}</pre>
+                    </div>
+                </div>
             </div>
         </div>
     )
