@@ -22,13 +22,31 @@ export function scanFooterForPejabat(worksheet) {
         pengurus_barang: { nama: '', nip: '' }
     }
 
-    // NIP-FIRST STRATEGY (More Robust)
-    // Scan bottom 40 rows. If we find "NIP", assume the name is 1 or 2 rows above it.
+    // 1. FIND REAL LAST ROW (Ignore empty rows at bottom using formatting)
+    // ExcelJS rowCount includes empty shaped rows. We need the actual data end.
+    let realLastRow = worksheet.rowCount
+    const minRow = Math.max(1, realLastRow - 1000) // Don't scan forever if valid rows
 
-    const totalRows = worksheet.rowCount
-    const startScan = Math.max(1, totalRows - 40)
+    for (let r = realLastRow; r >= minRow; r--) {
+        const row = worksheet.getRow(r)
+        // Check if row has any non-empty string value
+        let hasContent = false
+        row.eachCell((cell) => {
+            if (cell.value && cell.value.toString().trim().length > 0) hasContent = true
+        })
 
-    for (let rowNum = totalRows; rowNum >= startScan; rowNum--) {
+        if (hasContent) {
+            realLastRow = r
+            break
+        }
+    }
+
+    console.log(`[FOOTER SCAN] RowCount: ${worksheet.rowCount}, RealLastRow: ${realLastRow}`)
+
+    // 2. SCAN FROM REAL LAST ROW UPWARDS (Max 50 rows)
+    const startScan = Math.max(1, realLastRow - 50)
+
+    for (let rowNum = realLastRow; rowNum >= startScan; rowNum--) {
         const row = worksheet.getRow(rowNum)
 
         row.eachCell((cell, colNum) => {
@@ -36,9 +54,11 @@ export function scanFooterForPejabat(worksheet) {
 
             // Check if this cell looks like a NIP
             const isNipKeyword = val.toLowerCase().includes('nip')
+            // NIP pattern: Must have at least 15 digits (standard NIP is 18 digits)
+            // But let's be loose -> 10 digits
             const isDigitPattern = val.replace(/\D/g, '').length >= 10
 
-            if (isNipKeyword || (isDigitPattern && val.length < 30)) {
+            if (isNipKeyword || (isDigitPattern && val.length < 35)) { // Avoid grabbing long sentences
 
                 // Clean NIP
                 const cleanNip = val.replace(/^NIP\.?\s*/i, '').trim()
@@ -58,12 +78,18 @@ export function scanFooterForPejabat(worksheet) {
                     }
                 }
 
+                // If name looks like "Mengetahui" or "Kepala Sekolah", it's NOT a name.
+                // In that case, maybe name is ABOVE that header? (Rare, but possible).
+                // Usually Name is below header, and above NIP.
+                // So if Row-1 is "Kepala Sekolah", then Row-2 ??
+                // Let's stick to simple: Name is closest text above NIP.
+
                 // Determine Role based on Column Position
                 // Left side (Col 1-8) = Kepala Sekolah
                 // Right side (Col > 8) = Pengurus Barang
 
                 if (colNum <= 8) {
-                    if (!result.kepala_sekolah.nip) { // Data terbawah biasanya yang benar
+                    if (!result.kepala_sekolah.nip) {
                         result.kepala_sekolah.nip = cleanNip
                         if (name) result.kepala_sekolah.nama = name
                     }
