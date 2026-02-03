@@ -4,7 +4,7 @@ import useAppStore from '../stores/appStore'
 import { getConfig, updateConfig } from '../lib/api'
 
 function ConfigForm() {
-    const { config, setConfig, setCurrentStep } = useAppStore()
+    const { config, setConfig, setCurrentStep, scannedPejabat } = useAppStore()
     const [isLoading, setIsLoading] = useState(true)
     const [loadError, setLoadError] = useState(null)
     const [formData, setFormData] = useState(config || {
@@ -19,10 +19,20 @@ function ConfigForm() {
     })
 
     useEffect(() => {
-        // PERBAIKAN: Gunakan data dari parsed upload (local state) JIKA ADA.
-        // Jangan fetch dari server kalau kita baru saja upload file yang berisi metadata.
+        // PERBAIKAN: Cek 'scannedPejabat' dari hasil upload Excel
+        if (scannedPejabat && (scannedPejabat.kepala_sekolah?.nama || scannedPejabat.kepala_sekolah?.nip)) {
+            console.log('Using scannedPejabat from upload', scannedPejabat)
+            setFormData(prev => ({
+                ...prev,
+                pejabat: scannedPejabat
+            }))
+            setIsLoading(false)
+            return
+        }
+
+        // Fallback: Cek 'config' yang mungkin sudah ada
         if (config && config.pejabat && (config.pejabat.kepala_sekolah?.nama || config.pejabat.kepala_sekolah?.nip)) {
-            console.log('Using config from upload metadata', config)
+            console.log('Using config from store', config)
             setFormData(config)
             setIsLoading(false)
             return
