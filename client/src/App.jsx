@@ -49,16 +49,16 @@ function App() {
                 <div className="absolute top-[-100px] right-0 w-[600px] h-[500px] bg-green-100/40 rounded-full blur-[80px] opacity-50 mix-blend-multiply"></div>
             </div>
 
-            {/* Navbar */}
-            <nav className="relative z-50 bg-white/80 backdrop-blur-md border-b border-slate-200/60 sticky top-0">
+            {/* Navbar (DEBUG MODE) */}
+            <nav className="relative z-50 bg-white/80 backdrop-blur-md border-b border-rose-200/60 sticky top-0">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                        <div className="bg-gradient-to-br from-brand-600 to-indigo-600 w-10 h-10 rounded-xl flex items-center justify-center shadow-lg shadow-brand-200">
+                        <div className="bg-gradient-to-br from-rose-600 to-red-600 w-10 h-10 rounded-xl flex items-center justify-center shadow-lg shadow-rose-200">
                             <School className="w-6 h-6 text-white" />
                         </div>
                         <div>
-                            <h1 className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-brand-700 to-indigo-700 tracking-tight">
-                                Manajemen SD Drawati
+                            <h1 className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-rose-700 to-red-700 tracking-tight">
+                                Manajemen SD Drawati (DEBUG MODE V2)
                             </h1>
                             <p className="text-xs text-slate-500 font-medium tracking-wide">
                                 SISTEM OTOMASI ASET SEKOLAH
