@@ -358,7 +358,6 @@ function ConfigForm() {
                 </div>
             </div>
         </div>
-        </div >
     )
 }
 
