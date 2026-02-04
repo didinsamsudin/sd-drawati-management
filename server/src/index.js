@@ -333,8 +333,23 @@ app.get(['/api/config', '/config'], async (req, res) => {
         } catch (e) {
             console.log('[CONFIG] File not found, using default')
             configData = {
-                sekolah: { nama: 'SDN DRAWATI 04', alamat: 'Default Address' },
-                pejabat: { kepala_sekolah: {}, pengurus_barang: {} }
+                sekolah: {
+                    nama: 'SDN DRAWATI 04',
+                    alamat: 'Jalan Sukasari No. 14 Desa Drawati Kecamatan Paseh',
+                    nss: '101020812020',
+                    npsn: '20207663',
+                    email: 'sdndrawati4@yahoo.com / sdndrawati004@gmail.com'
+                },
+                pejabat: {
+                    kepala_sekolah: {
+                        nama: 'Paris Nopriadi, S.Pd',
+                        nip: '198611212009011001'
+                    },
+                    pengurus_barang: {
+                        nama: 'Asep Sudrajat',
+                        nip: '19690402 202521 1 037'
+                    }
+                }
             }
         }
 
