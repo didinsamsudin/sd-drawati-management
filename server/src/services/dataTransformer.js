@@ -61,18 +61,33 @@ export function transformToOutputFormat(rawData, saldoAwal = {}) {
 export function filterSisaBarang(rawData) {
     return rawData
         .filter(row => {
-            const sisaJumlah = Number(row.Sisa_Jumlah_Barang) || 0
-            return sisaJumlah > 0
+            const sisa = Number(row.Sisa_Jumlah_Barang) || 0
+            const pengadaan = Number(row.Pengadaan_Jumlah_Barang) || 0
+            const penggunaan = Number(row.Penggunaan_Jumlah_Barang) || 0
+
+            // Show item if it has any activity or remaining stock
+            return sisa > 0 || pengadaan > 0 || penggunaan > 0
         })
         .map((row, index) => ({
             no: index + 1,
             nama_barang: row.Uraian,
             spesifikasi: row.Spesifikasi || '',
-            jumlah: Number(row.Sisa_Jumlah_Barang) || 0,
-            harga_satuan: Number(row.Sisa_Harga_Satuan) || 0,
-            nilai_total: Number(row.Sisa_Total) || 0,
+            jumlah: Number(row.Sisa_Jumlah_Barang) || Number(row.Pengadaan_Jumlah_Barang) || 0,
+            harga_satuan: Number(row.Sisa_Harga_Satuan) || Number(row.Pengadaan_Harga_Satuan) || 0,
+            nilai_total: Number(row.Sisa_Total) || Number(row.Pengadaan_Total) || 0,
             satuan: row.Satuan || 'buah',
-            kategori: row.Kategori || 'Persediaan Lain - Lain'
+            kategori: row.Kategori || 'Persediaan Lain - Lain',
+            // Also pass through transaction data for completeness if needed later
+            pengadaan: {
+                jumlah: Number(row.Pengadaan_Jumlah_Barang) || 0,
+                harga: Number(row.Pengadaan_Harga_Satuan) || 0,
+                total: Number(row.Pengadaan_Total) || 0
+            },
+            penggunaan: {
+                jumlah: Number(row.Penggunaan_Jumlah_Barang) || 0,
+                harga: Number(row.Penggunaan_Harga_Satuan) || 0,
+                total: Number(row.Penggunaan_Total) || 0
+            }
         }))
 }
 

@@ -192,11 +192,11 @@ function GenerateProgress() {
                                     name: 'LAPORAN PERSEDIAAN',
                                     ext: 'xlsx',
                                     icon: FileSpreadsheet,
-                                    color: 'text-gray-400',
-                                    bg: 'bg-gray-50',
-                                    border: 'border-gray-100',
-                                    active: false,
-                                    comingSoon: true
+                                    color: 'text-blue-600',
+                                    bg: 'bg-blue-50',
+                                    border: 'border-blue-100',
+                                    url: generatedFiles?.files?.laporanPersediaan,
+                                    active: true
                                 },
                                 {
                                     name: 'BA STOCK OPNAME',

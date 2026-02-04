@@ -1,30 +1,19 @@
 {
   "sekolah": {
     "nama": "SDN DRAWATI 04",
+    "alamat": "Jalan Sukasari No. 14 Desa Drawati Kecamatan Paseh",
     "nss": "101020812020",
     "npsn": "20207663",
-    "alamat": "Jalan Sukasari No. 14 Desa Drawati Kecamatan Paseh",
-    "kode_pos": "40383",
-    "email": "sdndrawati4@yahoo.com",
-    "kabupaten": "Kabupaten Bandung"
+    "email": "sdndrawati4@yahoo.com / sdndrawati004@gmail.com"
   },
   "pejabat": {
     "kepala_sekolah": {
-      "nama": "PARIS NOPRIADI, S.Pd",
-      "nip": "19861121 200901 1 001",
-      "pangkat": "Penata TK. I / III/d"
+      "nama": "Paris Nopriadi, S.Pd",
+      "nip": "198611212009011001"
     },
     "pengurus_barang": {
-      "nama": "ASEP SUDRAJAT",
+      "nama": "Asep Sudrajat",
       "nip": "19690402 202521 1 037"
-    },
-    "pihak_pertama": {
-      "nama": "ADE RIAN KURNIAWAN, S.Pd",
-      "nip": "19820322 200901 1 002"
     }
-  },
-  "nomor_surat": {
-    "prefix_ba": "421.2 /078/BA-SD_Drwt04",
-    "prefix_bast": "421.2 /078/BAST-SD_Drwt04"
   }
 }

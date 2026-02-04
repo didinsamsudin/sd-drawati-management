@@ -21,12 +21,266 @@ function addKopSurat(worksheet, sekolah) {
     worksheet.getCell('A2').alignment = { horizontal: 'center' }
 
     worksheet.mergeCells('A3:P3')
-    worksheet.getCell('A3').value = `NSS: ${sekolah.nss} | NPSN: ${sekolah.npsn}`
+    worksheet.getCell('A3').value = `NSS: ${sekolah.nss || '-'} | NPSN: ${sekolah.npsn || '-'}`
     worksheet.getCell('A3').font = { size: 9 }
     worksheet.getCell('A3').alignment = { horizontal: 'center' }
 
+    // Email Row
+    worksheet.mergeCells('A4:P4')
+    worksheet.getCell('A4').value = `Email : ${sekolah.email || '-'}`
+    worksheet.getCell('A4').font = { size: 9 }
+    worksheet.getCell('A4').alignment = { horizontal: 'center' }
+
     // Empty row
-    worksheet.getRow(4).height = 5
+    worksheet.getRow(5).height = 5
+}
+
+// ... (existing code for dates)
+
+// ... (existing code for FormStockOpname)
+
+/**
+ * Generate LAPORAN PERSEDIAAN
+ * ZERO HARDCODE: Uses config.tanggalLaporan
+ */
+export async function generateLaporanPersediaan(filteredData, config) {
+    const workbook = new ExcelJS.Workbook()
+    const worksheet = workbook.addWorksheet('Sheet1')
+
+    // ===== ZERO HARDCODE: Dynamic date =====
+    const tanggalFormatted = formatTanggalIndonesia(config.tanggalLaporan)
+
+    // Kop surat (rows 1-4)
+    addKopSurat(worksheet, config.sekolah)
+
+    // Title (Shifted down by 1 due to Email row)
+    worksheet.mergeCells('A6:G6')
+    const titleCell = worksheet.getCell('A6')
+    titleCell.value = 'LAPORAN PERSEDIAAN'
+    titleCell.font = { bold: true, size: 14 }
+    titleCell.alignment = { horizontal: 'center', vertical: 'middle' }
+
+    worksheet.mergeCells('A7:G7')
+    // ===== ZERO HARDCODE: Dynamic date =====
+    worksheet.getCell('A7').value = `Per ${tanggalFormatted}`
+    worksheet.getCell('A7').font = { bold: true, size: 11 }
+    worksheet.getCell('A7').alignment = { horizontal: 'center' }
+
+    // Info rows
+    worksheet.getCell('A9').value = 'Nama Sekolah'
+    worksheet.getCell('B9').value = ': ' + config.sekolah.nama
+    worksheet.getCell('A10').value = 'Alamat'
+    worksheet.getCell('B10').value = ': ' + config.sekolah.alamat
+    worksheet.getCell('A11').value = 'NSS/NPSN'
+    worksheet.getCell('B11').value = `: ${config.sekolah.nss || '-'} / ${config.sekolah.npsn || '-'}`
+
+    // Empty rows
+    worksheet.getRow(12).height = 5
+    worksheet.getRow(13).height = 5
+    worksheet.getRow(14).height = 5
+
+    // Headers (row 15)
+    const headers = [
+        'No',
+        'Nama Barang',
+        'Spesifikasi',
+        'Jumlah',
+        'Harga Satuan (Rp)',
+        'Nilai Total Persediaan (Rp)',
+        'Keterangan'
+    ]
+
+    headers.forEach((header, idx) => {
+        const cell = worksheet.getCell(15, idx + 1)
+        cell.value = header
+        cell.font = { bold: true, size: 10 }
+        cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true }
+        cell.fill = {
+            type: 'pattern',
+            pattern: 'solid',
+            fgColor: { argb: 'FFD0D0D0' }
+        }
+        cell.border = {
+            top: { style: 'thin' },
+            left: { style: 'thin' },
+            bottom: { style: 'thin' },
+            right: { style: 'thin' }
+        }
+    })
+
+    // Data rows (start from row 16)
+    // Reset counters (variables declared above)
+    let rowNum = 16
+    let totalNilai = 0
+
+    // ... (Aggregation logic remains same, just rowNum started at 16)
+    // Need to update the rest of the function to use local rowNum logic properly
+    // ...
+
+    // RE-INSERT Aggregation Logic to ensure rowNum sync
+    const aggregatedMap = new Map()
+
+    filteredData.forEach(item => {
+        const nama = (item.nama_barang || '').trim()
+        const spec = (item.spesifikasi || '').trim()
+        const harga = Number(item.harga_satuan) || 0
+        const key = `${nama.toLowerCase()}|${spec.toLowerCase()}|${harga}`
+
+        if (!aggregatedMap.has(key)) {
+            aggregatedMap.set(key, {
+                nama_barang: nama,
+                spesifikasi: spec,
+                jumlah: 0,
+                harga_satuan: harga,
+                nilai_total: 0
+            })
+        }
+
+        const existing = aggregatedMap.get(key)
+        existing.jumlah += (Number(item.jumlah) || Number(item.pengadaan?.jumlah) || 0)
+        existing.nilai_total += (Number(item.nilai_total) || Number(item.pengadaan?.total) || 0)
+    })
+
+    const aggregatedSortedData = Array.from(aggregatedMap.values()).sort((a, b) => {
+        return a.nama_barang.localeCompare(b.nama_barang)
+    })
+
+    aggregatedSortedData.forEach((item, idx) => {
+        const row = worksheet.getRow(rowNum)
+
+        // Recalculate Total
+        const calculatedTotal = item.jumlah * item.harga_satuan
+        const finalTotal = calculatedTotal || item.nilai_total
+
+        row.values = [
+            idx + 1,
+            item.nama_barang,
+            item.spesifikasi,
+            item.jumlah,
+            item.harga_satuan,
+            finalTotal,
+            ''
+        ]
+
+        totalNilai += finalTotal
+
+        for (let col = 1; col <= 7; col++) {
+            const cell = row.getCell(col)
+            cell.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } }
+            cell.font = { name: 'Arial', size: 10 }
+
+            if ([4, 5, 6].includes(col)) {
+                cell.numFmt = '#,##0'
+                cell.alignment = { horizontal: 'right' }
+            } else if (col === 1) {
+                cell.alignment = { horizontal: 'center' }
+            } else {
+                cell.alignment = { horizontal: 'left', wrapText: true }
+            }
+        }
+        rowNum++
+    })
+
+    // Total row
+    const totalRow = worksheet.getRow(rowNum)
+    totalRow.values = ['', '', 'TOTAL', '', '', totalNilai, '']
+    worksheet.mergeCells(`A${rowNum}:B${rowNum}`)
+
+    totalRow.getCell(3).font = { bold: true, name: 'Arial' }
+    totalRow.getCell(3).alignment = { horizontal: 'center' }
+
+    totalRow.getCell(6).font = { bold: true, name: 'Arial' }
+    totalRow.getCell(6).numFmt = '#,##0'
+    totalRow.getCell(6).alignment = { horizontal: 'right' }
+
+    for (let col = 1; col <= 7; col++) {
+        totalRow.getCell(col).border = {
+            top: { style: 'double' },
+            left: { style: 'thin' },
+            bottom: { style: 'double' },
+            right: { style: 'thin' }
+        }
+    }
+
+    // Gap for signatures
+    rowNum += 3
+
+    // Signatures
+    const dateRow = worksheet.getRow(rowNum)
+    dateRow.getCell(6).value = `Bandung, ${tanggalFormatted}`
+    worksheet.mergeCells(`F${rowNum}:G${rowNum}`)
+    dateRow.getCell(6).alignment = { horizontal: 'center' }
+
+    rowNum++
+    const titleRow = worksheet.getRow(rowNum)
+    titleRow.getCell(2).value = 'PENGURUS BARANG'
+    titleRow.getCell(6).value = config.sekolah.nama ? `KEPALA ${config.sekolah.nama}` : 'KEPALA SEKOLAH'
+    titleRow.getCell(2).alignment = { horizontal: 'center' }
+    titleRow.getCell(6).alignment = { horizontal: 'center' }
+    worksheet.mergeCells(`F${rowNum}:G${rowNum}`)
+
+    // INSERT STAMP IMAGE IF EXISTS
+    // Assumes image is at 'server/assets/signature_stamp.png'
+    try {
+        const fs = await import('fs')
+        const path = await import('path')
+        // Fix: Use process.cwd() to resolve path relative to project root
+        // Manually constructed path might be risky, but let's try standard location
+        const imagePath = path.resolve(process.cwd(), 'server/assets/signature_stamp.png')
+
+        if (fs.existsSync(imagePath)) {
+            const imageId = workbook.addImage({
+                filename: imagePath,
+                extension: 'png',
+            });
+
+            // Position: Over the signature area (Left or Right?)
+            // Image looked like a School Stamp (Dinas Pendidikan).
+            // Usually stamps go on the LEFT of the Principal's signature (Right Side of Page).
+            // Principal is at Col 6.
+            // Stamp should be roughly Col 5-6, overlapping.
+
+            worksheet.addImage(imageId, {
+                tl: { col: 5, row: rowNum }, // Row num is currently "Gap" start
+                ext: { width: 120, height: 120 }
+            });
+            console.log('Signature stamp added')
+        }
+    } catch (e) {
+        console.warn('Could not add image:', e)
+    }
+
+    rowNum += 4
+
+    const nameRow = worksheet.getRow(rowNum)
+    nameRow.getCell(2).value = config.pejabat.pengurus_barang.nama
+    nameRow.getCell(6).value = config.pejabat.kepala_sekolah.nama
+    nameRow.getCell(2).font = { bold: true, underline: true }
+    nameRow.getCell(6).font = { bold: true, underline: true }
+    nameRow.getCell(2).alignment = { horizontal: 'center' }
+    nameRow.getCell(6).alignment = { horizontal: 'center' }
+    worksheet.mergeCells(`F${rowNum}:G${rowNum}`)
+
+    rowNum++
+    const nipRow = worksheet.getRow(rowNum)
+    nipRow.getCell(2).value = `NIP. ${config.pejabat.pengurus_barang.nip}`
+    nipRow.getCell(6).value = `NIP. ${config.pejabat.kepala_sekolah.nip}`
+    nipRow.getCell(2).alignment = { horizontal: 'center' }
+    nipRow.getCell(6).alignment = { horizontal: 'center' }
+    worksheet.mergeCells(`F${rowNum}:G${rowNum}`)
+
+    // Column Widths
+    worksheet.getColumn(1).width = 5
+    worksheet.getColumn(2).width = 35
+    worksheet.getColumn(3).width = 25
+    worksheet.getColumn(4).width = 12
+    worksheet.getColumn(5).width = 18
+    worksheet.getColumn(6).width = 22
+    worksheet.getColumn(7).width = 15
+
+    worksheet.getRow(15).height = 30 // Header Height
+
+    return workbook.xlsx.writeBuffer()
 }
 
 /**
@@ -279,11 +533,15 @@ export async function generateFormStockOpname(aggregatedData, config) {
         rowNum++
     }
 
+    // Aggregation Logic REMOVED as per user request (Step 363)
+    // Items should NOT be merged for Stock Opname.
+    const finalData = aggregatedData
+
     // Sort and Group
     const groups = {
-        'A': aggregatedData.filter(i => i.kategori && i.kategori.includes('ATK')),
-        'B': aggregatedData.filter(i => i.kategori && i.kategori.includes('Cetakan')),
-        'C': aggregatedData.filter(i => !i.kategori || (!i.kategori.includes('ATK') && !i.kategori.includes('Cetakan')))
+        'A': finalData.filter(i => i.kategori && i.kategori.includes('ATK')),
+        'B': finalData.filter(i => i.kategori && i.kategori.includes('Cetakan')),
+        'C': finalData.filter(i => !i.kategori || (!i.kategori.includes('ATK') && !i.kategori.includes('Cetakan')))
     }
 
     if (groups['A'].length > 0) writeSection('A. Persediaan Alat Tulis Kantor (ATK)', groups['A'])
@@ -364,148 +622,6 @@ export async function generateFormStockOpname(aggregatedData, config) {
     worksheet.getColumn(2).width = 35  // Jenis Barang (Wider)
     worksheet.getColumn(3).width = 8   // Satuan
     for (let c = 4; c <= 17; c++) worksheet.getColumn(c).width = 13 // Numbers
-
-    return workbook.xlsx.writeBuffer()
-}
-
-/**
- * Generate LAPORAN PERSEDIAAN
- * ZERO HARDCODE: Uses config.tanggalLaporan
- */
-export async function generateLaporanPersediaan(filteredData, config) {
-    const workbook = new ExcelJS.Workbook()
-    const worksheet = workbook.addWorksheet('Sheet1')
-
-    // ===== ZERO HARDCODE: Dynamic date =====
-    const tanggalFormatted = formatTanggalIndonesia(config.tanggalLaporan)
-
-    // Kop surat (rows 1-3)
-    addKopSurat(worksheet, config.sekolah)
-
-    // Title
-    worksheet.mergeCells('A5:G5')
-    const titleCell = worksheet.getCell('A5')
-    titleCell.value = 'LAPORAN PERSEDIAAN'
-    titleCell.font = { bold: true, size: 14 }
-    titleCell.alignment = { horizontal: 'center', vertical: 'middle' }
-
-    worksheet.mergeCells('A6:G6')
-    // ===== ZERO HARDCODE: Dynamic date =====
-    worksheet.getCell('A6').value = `Per ${tanggalFormatted}`
-    worksheet.getCell('A6').font = { bold: true, size: 11 }
-    worksheet.getCell('A6').alignment = { horizontal: 'center' }
-
-    // Info rows
-    worksheet.getCell('A8').value = 'Nama Sekolah'
-    worksheet.getCell('B8').value = ': ' + config.sekolah.nama
-    worksheet.getCell('A9').value = 'Alamat'
-    worksheet.getCell('B9').value = ': ' + config.sekolah.alamat
-    worksheet.getCell('A10').value = 'NSS/NPSN'
-    worksheet.getCell('B10').value = `: ${config.sekolah.nss} / ${config.sekolah.npsn}`
-
-    // Empty rows
-    worksheet.getRow(11).height = 5
-    worksheet.getRow(12).height = 5
-    worksheet.getRow(13).height = 5
-
-    // Headers (row 14)
-    const headers = [
-        'No',
-        'Nama Barang',
-        'Spesifikasi',
-        'Jumlah',
-        'Harga Satuan (Rp)',
-        'Nilai Total Persediaan (Rp)',
-        'Keterangan'
-    ]
-
-    headers.forEach((header, idx) => {
-        const cell = worksheet.getCell(14, idx + 1)
-        cell.value = header
-        cell.font = { bold: true, size: 10 }
-        cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true }
-        cell.fill = {
-            type: 'pattern',
-            pattern: 'solid',
-            fgColor: { argb: 'FFD0D0D0' }
-        }
-        cell.border = {
-            top: { style: 'thin' },
-            left: { style: 'thin' },
-            bottom: { style: 'thin' },
-            right: { style: 'thin' }
-        }
-    })
-
-    // Data rows (start from row 15)
-    let rowNum = 15
-    let totalNilai = 0
-
-    filteredData.forEach((item, idx) => {
-        const row = worksheet.getRow(rowNum)
-        row.values = [
-            idx + 1,
-            item.nama_barang,
-            item.spesifikasi,
-            item.jumlah,
-            item.harga_satuan,
-            item.nilai_total,
-            '' // Keterangan (kosong)
-        ]
-
-        totalNilai += item.nilai_total
-
-        // Style data rows
-        for (let col = 1; col <= 7; col++) {
-            const cell = row.getCell(col)
-            cell.border = {
-                top: { style: 'thin' },
-                left: { style: 'thin' },
-                bottom: { style: 'thin' },
-                right: { style: 'thin' }
-            }
-
-            if ([4, 5, 6].includes(col)) {
-                cell.numFmt = '#,##0'
-                cell.alignment = { horizontal: 'right' }
-            } else if (col === 1) {
-                cell.alignment = { horizontal: 'center' }
-            } else {
-                cell.alignment = { horizontal: 'left' }
-            }
-        }
-
-        rowNum++
-    })
-
-    // Total row
-    const totalRow = worksheet.getRow(rowNum)
-    totalRow.values = ['', '', 'TOTAL', '', '', totalNilai, '']
-    totalRow.getCell(3).font = { bold: true }
-    totalRow.getCell(3).alignment = { horizontal: 'center' }
-    totalRow.getCell(6).font = { bold: true }
-    totalRow.getCell(6).numFmt = '#,##0'
-    totalRow.getCell(6).alignment = { horizontal: 'right' }
-
-    for (let col = 1; col <= 7; col++) {
-        totalRow.getCell(col).border = {
-            top: { style: 'double' },
-            left: { style: 'thin' },
-            bottom: { style: 'double' },
-            right: { style: 'thin' }
-        }
-    }
-
-    // Column widths
-    worksheet.getColumn(1).width = 5
-    worksheet.getColumn(2).width = 30
-    worksheet.getColumn(3).width = 20
-    worksheet.getColumn(4).width = 10
-    worksheet.getColumn(5).width = 15
-    worksheet.getColumn(6).width = 20
-    worksheet.getColumn(7).width = 15
-
-    worksheet.getRow(14).height = 30
 
     return workbook.xlsx.writeBuffer()
 }

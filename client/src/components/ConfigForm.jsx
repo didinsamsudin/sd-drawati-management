@@ -46,6 +46,7 @@ function ConfigForm() {
                 foundPejabat = config.pejabat;
             }
 
+            // 5. Apply Object found (Pejabat Only)
             if (foundPejabat) {
                 setFormData(prev => ({
                     ...prev,
@@ -54,23 +55,26 @@ function ConfigForm() {
                         pengurus_barang: { ...prev.pejabat.pengurus_barang, ...foundPejabat.pengurus_barang }
                     }
                 }))
-                setIsLoading(false)
-                return
             }
 
-            // If nothing found in local state, try fetch from server config
-            // But only if we haven't loaded yet
-            if (isLoading) {
-                getConfig()
-                    .then(response => {
-                        if (response.data && response.data.pejabat) {
-                            setFormData(response.data)
-                            setConfig(response.data)
-                        }
-                        setIsLoading(false)
-                    })
-                    .catch(() => setIsLoading(false))
-            }
+            // 6. ALWAYS Fetch Server Config for School Details (NSS, Email, etc.)
+            // Don't rely on local cache for this as it might be outdated
+            getConfig()
+                .then(response => {
+                    if (response.data) {
+                        setFormData(prev => ({
+                            ...prev,
+                            // Merge Sekolah info from server (High Priority)
+                            sekolah: { ...prev.sekolah, ...response.data.sekolah },
+                            // Merge Pejabat only if we didn't find them in scan (Low Priority compared to Scan)
+                            pejabat: foundPejabat ? prev.pejabat : { ...prev.pejabat, ...response.data.pejabat }
+                        }))
+                        // Update global store too
+                        setConfig(response.data)
+                    }
+                })
+                .catch(err => console.error('Failed to load config:', err))
+                .finally(() => setIsLoading(false))
         }
 
         findAndSetData()
@@ -153,6 +157,55 @@ function ConfigForm() {
                                 className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all font-medium text-slate-800 placeholder:text-slate-400 resize-none"
                                 placeholder="Jalan..."
                                 required
+                            />
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4">
+                            <div>
+                                <label className="block text-sm font-semibold text-slate-700 mb-2">
+                                    NSS
+                                </label>
+                                <input
+                                    type="text"
+                                    value={formData.sekolah?.nss || ''}
+                                    onChange={(e) => setFormData({
+                                        ...formData,
+                                        sekolah: { ...formData.sekolah, nss: e.target.value }
+                                    })}
+                                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all font-medium text-slate-800"
+                                    placeholder="Nomor Statistik Sekolah"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-semibold text-slate-700 mb-2">
+                                    NPSN
+                                </label>
+                                <input
+                                    type="text"
+                                    value={formData.sekolah?.npsn || ''}
+                                    onChange={(e) => setFormData({
+                                        ...formData,
+                                        sekolah: { ...formData.sekolah, npsn: e.target.value }
+                                    })}
+                                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all font-medium text-slate-800"
+                                    placeholder="Nomor Pokok Sekolah Nasional"
+                                />
+                            </div>
+                        </div>
+
+                        <div>
+                            <label className="block text-sm font-semibold text-slate-700 mb-2">
+                                Email Sekolah
+                            </label>
+                            <input
+                                type="text"
+                                value={formData.sekolah?.email || ''}
+                                onChange={(e) => setFormData({
+                                    ...formData,
+                                    sekolah: { ...formData.sekolah, email: e.target.value }
+                                })}
+                                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all font-medium text-slate-800"
+                                placeholder="email@sekolah.sch.id"
                             />
                         </div>
                     </div>
