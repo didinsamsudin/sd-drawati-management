@@ -344,8 +344,21 @@ function ConfigForm() {
                         <pre className="mt-2 text-[10px] text-slate-500">{JSON.stringify(formData.pejabat, null, 2)}</pre>
                     </div>
                 </div>
+                <div className="mt-4 flex justify-end">
+                    <button
+                        type="button"
+                        onClick={() => {
+                            setConfig(null); // Clear store
+                            window.location.reload(); // Force reload to re-trigger useEffect
+                        }}
+                        className="text-xs bg-slate-200 hover:bg-slate-300 text-slate-600 px-3 py-1 rounded"
+                    >
+                        Force Reload Config
+                    </button>
+                </div>
             </div>
         </div>
+        </div >
     )
 }
 
